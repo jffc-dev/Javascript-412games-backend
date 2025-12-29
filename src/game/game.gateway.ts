@@ -107,6 +107,7 @@ export class GameGateway
     @MessageBody() data: JoinRoomDto,
   ) {
     try {
+      console.log('joinRoom');
       // Check if player is already in a room
       const existingRoom = this.roomService.getRoomBySocketId(client.id);
       if (existingRoom) {

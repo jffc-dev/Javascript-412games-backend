@@ -1,0 +1,305 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Country {
+  id                                  String                    @id @default(cuid())
+  name                                String                    @unique @db.VarChar(100)
+  code                                String?                   @unique @db.Char(3)
+  createdAt                           DateTime                  @default(now()) @map("created_at")
+  updatedAt                           DateTime                  @updatedAt @map("updated_at")
+
+  leagues                             League[]
+  teams                               Team[]
+  persons                             Person[]
+  personNationalities                 PersonNationality[]
+
+  @@map("countries")
+}
+
+model League {
+  id                                  String                    @id @default(cuid())
+  name                                String                    @db.VarChar(255)
+  countryId                           String?                   @map("country_id")
+  tier                                Int?
+  competitionType                     String?                   @map("competition_type") @db.VarChar(50)
+  transfermarktId                     String?                   @unique @map("transfermarkt_id") @db.VarChar(50)
+  createdAt                           DateTime                  @default(now()) @map("created_at")
+  updatedAt                           DateTime                  @updatedAt @map("updated_at")
+
+  country                             Country?                  @relation(fields: [countryId], references: [id])
+  teams                               Team[]
+  playerCareer                        PlayerCareer[]
+  managerCareer                       ManagerCareer[]
+
+  @@map("leagues")
+}
+
+model Team {
+  id                                  String                    @id @default(cuid())
+  name                                String                    @db.VarChar(255)
+  shortName                           String?                   @map("short_name") @db.VarChar(100)
+  leagueId                            String?                   @map("league_id")
+  countryId                           String?                   @map("country_id")
+  foundedYear                         Int?                      @map("founded_year")
+  transfermarktId                     String?                   @unique @map("transfermarkt_id") @db.VarChar(50)
+  logoUrl                             String?                   @map("logo_url") @db.Text
+  stadium                             String?                   @db.VarChar(255)
+  // Denormalized flags
+  hasWonChampionsLeague               Boolean                   @default(false) @map("has_won_champions_league")
+  hasWonEuropaLeague                  Boolean                   @default(false) @map("has_won_europa_league")
+  hasWonDomesticLeague                Boolean                   @default(false) @map("has_won_domestic_league")
+  championsLeagueTitles               Int                       @default(0) @map("champions_league_titles")
+  europaLeagueTitles                  Int                       @default(0) @map("europa_league_titles")
+  domesticLeagueTitles                Int                       @default(0) @map("domestic_league_titles")
+  createdAt                           DateTime                  @default(now()) @map("created_at")
+  updatedAt                           DateTime                  @updatedAt @map("updated_at")
+
+  league                              League?                   @relation(fields: [leagueId], references: [id])
+  country                             Country?                  @relation(fields: [countryId], references: [id])
+  currentPlayers                      PlayerProfile[]           @relation("CurrentTeamPlayers")
+  currentManagers                     ManagerProfile[]          @relation("CurrentTeamManagers")
+  playerCareer                        PlayerCareer[]
+  managerCareer                       ManagerCareer[]
+  teamTrophies                        TeamTrophy[]
+  playerTrophies                      PlayerTrophy[]
+  managerTrophies                     ManagerTrophy[]
+
+  @@index([leagueId])
+  @@index([name])
+  @@index([hasWonChampionsLeague])
+  @@map("teams")
+}
+
+model Person {
+  id                                  String                    @id @default(cuid())
+  name                                String                    @db.VarChar(255)
+  countryId                           String?                   @map("country_id")
+  fullName                            String?                   @map("full_name") @db.VarChar(255)
+  dateOfBirth                         DateTime?                 @map("date_of_birth") @db.Date
+  transfermarktId                     String?                   @unique @map("transfermarkt_id") @db.VarChar(50)
+  imageUrl                            String?                   @map("image_url") @db.Text
+  // Role flags
+  isPlayer                            Boolean                   @default(false) @map("is_player")
+  isManager                           Boolean                   @default(false) @map("is_manager")
+  isRetiredPlayer                     Boolean                   @default(false) @map("is_retired_player")
+  additionalData                      Json?                     @map("additional_data")
+  createdAt                           DateTime                  @default(now()) @map("created_at")
+  updatedAt                           DateTime                  @updatedAt @map("updated_at")
+
+  country                             Country?                  @relation(fields: [countryId], references: [id])
+  playerProfile                       PlayerProfile?
+  managerProfile                      ManagerProfile?
+  playerCareer                        PlayerCareer[]
+  managerCareer                       ManagerCareer[]
+  playerTrophies                      PlayerTrophy[]
+  managerTrophies                     ManagerTrophy[]
+  playerNationalities                 PersonNationality[]
+
+  @@index([countryId])
+  @@index([isPlayer, isManager])
+  @@map("persons")
+}
+
+// ============================================
+// PLAYER & MANAGER PROFILES
+// ============================================
+
+model PlayerProfile {
+  personId                            String                    @id @default(cuid())
+  position                            String?                   @db.VarChar(50)
+  foot                                String?                   @db.VarChar(20)
+  heightCm                            Int?                      @map("height_cm")
+  currentTeamId                       String?                   @map("current_team_id")
+  marketValueEuros                    BigInt?                   @map("market_value_euros")
+  // Denormalized flags
+  hasWonChampionsLeague               Boolean                   @default(false) @map("has_won_champions_league")
+  hasWonWorldCup                      Boolean                   @default(false) @map("has_won_world_cup")
+  hasWonBallonDor                     Boolean                   @default(false) @map("has_won_ballon_dor")
+  careerClubsIds                      Int[]                     @default([]) @map("career_clubs_ids")
+  careerLeaguesIds                    Int[]                     @default([]) @map("career_leagues_ids")
+  createdAt                           DateTime                  @default(now()) @map("created_at")
+  updatedAt                           DateTime                  @updatedAt @map("updated_at")
+
+  person                              Person                    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  currentTeam                         Team?                     @relation("CurrentTeamPlayers", fields: [currentTeamId], references: [id])
+
+  @@index([currentTeamId])
+  @@index([hasWonChampionsLeague])
+  @@map("player_profiles")
+}
+
+model ManagerProfile {
+  personId                            String                    @id @default(cuid())
+  currentTeamId                       String?                   @map("current_team_id")
+  preferredFormation                  String?                   @map("preferred_formation") @db.VarChar(20)
+  coachingLicense                     String?                   @map("coaching_license") @db.VarChar(100)
+  // Denormalized flags
+  hasWonChampionsLeagueAsManager      Boolean                   @default(false) @map("has_won_champions_league_as_manager")
+  hasWonDomesticLeagueAsManager       Boolean                   @default(false) @map("has_won_domestic_league_as_manager")
+  createdAt                           DateTime                  @default(now()) @map("created_at")
+  updatedAt                           DateTime                  @updatedAt @map("updated_at")
+
+  person                              Person                    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  currentTeam                         Team?                     @relation("CurrentTeamManagers", fields: [currentTeamId], references: [id])
+
+  @@index([currentTeamId])
+  @@index([hasWonChampionsLeagueAsManager])
+  @@map("manager_profiles")
+}
+
+// ============================================
+// CAREER HISTORY
+// ============================================
+
+model PlayerCareer {
+  id                                  String                    @id @default(cuid())
+  personId                            String                    @map("person_id")
+  teamId                              String                    @map("team_id")
+  leagueId                            String?                   @map("league_id")
+  seasonStart                         Int                       @map("season_start")
+  seasonEnd                           Int?                      @map("season_end")
+  appearances                         Int?
+  goals                               Int?
+  assists                             Int?
+  isLoan                              Boolean                   @default(false) @map("is_loan")
+  isCurrent                           Boolean                   @default(false) @map("is_current")
+  createdAt                           DateTime                  @default(now()) @map("created_at")
+  updatedAt                           DateTime                  @updatedAt @map("updated_at")
+
+  person                              Person                    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  team                                Team                      @relation(fields: [teamId], references: [id])
+  league                              League?                   @relation(fields: [leagueId], references: [id])
+
+  @@index([personId, teamId])
+  @@index([seasonStart, seasonEnd])
+  @@index([isCurrent])
+  @@map("player_career")
+}
+
+model ManagerCareer {
+  id                                  String                    @id @default(cuid())
+  personId                            String                    @map("person_id")
+  teamId                              String                    @map("team_id")
+  leagueId                            String?                   @map("league_id")
+  appointmentDate                     DateTime                  @map("appointment_date") @db.Date
+  departureDate                       DateTime?                 @map("departure_date") @db.Date
+  gamesManaged                        Int?                      @map("games_managed")
+  wins                                Int?
+  draws                               Int?
+  losses                              Int?
+  isCurrent                           Boolean                   @default(false) @map("is_current")
+  dismissalReason                     String?                   @map("dismissal_reason") @db.VarChar(100)
+  createdAt                           DateTime                  @default(now()) @map("created_at")
+  updatedAt                           DateTime                  @updatedAt @map("updated_at")
+
+  person                              Person                    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  team                                Team                      @relation(fields: [teamId], references: [id])
+  league                              League?                   @relation(fields: [leagueId], references: [id])
+
+  @@index([personId, teamId])
+  @@index([isCurrent])
+  @@map("manager_career")
+}
+
+// ============================================
+// COMPETITIONS & TROPHIES
+// ============================================
+
+model Competition {
+  id                                  String                    @id @default(cuid())
+  name                                String                    @unique @db.VarChar(255)
+  shortName                           String?                   @map("short_name") @db.VarChar(100)
+  competitionType                     String?                   @map("competition_type") @db.VarChar(100)
+  tier                                String?                   @db.VarChar(50)
+  region                              String?                   @db.VarChar(100)
+  createdAt                           DateTime                  @default(now()) @map("created_at")
+  updatedAt                           DateTime                  @updatedAt @map("updated_at")
+
+  teamTrophies                        TeamTrophy[]
+  playerTrophies                      PlayerTrophy[]
+  managerTrophies                     ManagerTrophy[]
+
+  @@map("competitions")
+}
+
+model TeamTrophy {
+  id                                  String                    @id @default(cuid())
+  teamId                              String                    @map("team_id")
+  competitionId                       String                    @map("competition_id")
+  season                              Int
+  notes                               String?                   @db.Text
+  createdAt                           DateTime                  @default(now()) @map("created_at")
+  updatedAt                           DateTime                  @updatedAt @map("updated_at")
+
+  team                                Team                      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  competition                         Competition               @relation(fields: [competitionId], references: [id])
+
+  @@index([teamId, competitionId])
+  @@index([season])
+  @@map("team_trophies")
+}
+
+model PlayerTrophy {
+  id                                  String                    @id @default(cuid())
+  personId                            String                    @map("person_id")
+  competitionId                       String                    @map("competition_id")
+  teamId                              String?                   @map("team_id")
+  season                              Int
+  isNationalTeam                      Boolean                   @default(false) @map("is_national_team")
+  createdAt                           DateTime                  @default(now()) @map("created_at")
+  updatedAt                           DateTime                  @updatedAt @map("updated_at")
+
+  person                              Person                    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  competition                         Competition               @relation(fields: [competitionId], references: [id])
+  team                                Team?                     @relation(fields: [teamId], references: [id])
+
+  @@index([personId, competitionId])
+  @@index([season])
+  @@map("player_trophies")
+}
+
+model ManagerTrophy {
+  id                                  String                    @id @default(cuid())
+  personId                            String                    @map("person_id")
+  competitionId                       String                    @map("competition_id")
+  teamId                              String?                   @map("team_id")
+  season                              Int
+  isNationalTeam                      Boolean                   @default(false) @map("is_national_team")
+  createdAt                           DateTime                  @default(now()) @map("created_at")
+  updatedAt                           DateTime                  @updatedAt @map("updated_at")
+
+  person                              Person                    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  competition                         Competition               @relation(fields: [competitionId], references: [id])
+  team                                Team?                     @relation(fields: [teamId], references: [id])
+
+  @@index([personId, competitionId])
+  @@index([season])
+  @@map("manager_trophies")
+}
+
+// ============================================
+// ADDITIONAL ENTITIES
+// ============================================
+
+model PersonNationality {
+  personId                            String                    @map("person_id")
+  countryId                           String                    @map("country_id")
+
+  person                              Person                    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  country                             Country                   @relation(fields: [countryId], references: [id])
+
+  @@id([personId, countryId])
+  @@map("person_nationalities")
+}
